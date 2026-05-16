@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:frontend/src/core/l10n/l10n.dart';
 
 import '../../../../routes/app_route_path.dart';
 import '../../../chat/domain/entities/chat_entity.dart';
@@ -20,7 +21,8 @@ class _ConversationManagementPageState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
-    final surfaceContainer = onSurface.withOpacity(0.1);
+    final surfaceContainer = onSurface.withValues(alpha: 0.1);
+    final isGroup = widget.thread.isGroup;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -43,13 +45,13 @@ class _ConversationManagementPageState
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'block',
-                child: Text('Chặn'),
+                child: Text(context.l10n.blockAction),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'delete',
-                child: Text('Xóa cuộc trò chuyện'),
+                child: Text(context.l10n.deleteConversationAction),
               ),
             ],
           ),
@@ -83,7 +85,7 @@ class _ConversationManagementPageState
             Text(
               widget.thread.senderName.trim().isNotEmpty
                   ? widget.thread.senderName.trim()
-                  : 'Chúa tể đỏ đen',
+                  : context.l10n.userDefaultName,
               style: TextStyle(
                 color: onSurface,
                 fontSize: 24,
@@ -98,23 +100,47 @@ class _ConversationManagementPageState
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: _buildActionButton(Icons.call, 'Gọi thoại', context)),
-                  Expanded(child: _buildActionButton(Icons.videocam, 'Gọi video', context)),
-                  Expanded(child: _buildActionButton(Icons.person, 'Trang cá nhân', context, onTap: () {
-                    if (widget.thread.recipientId.isNotEmpty) {
-                      context.pushNamed(
-                        AppRoutes.otherProfile.name,
-                        pathParameters: {'userId': widget.thread.recipientId},
-                      );
-                    }
-                  })),
-                  Expanded(child: _buildActionButton(Icons.notifications, 'Tắt thông báo', context)),
+                  Expanded(child: _buildActionButton(Icons.call, context.l10n.audioCallAction, context)),
+                  Expanded(child: _buildActionButton(Icons.videocam, context.l10n.videoCallAction, context)),
+                  Expanded(
+                    child: isGroup
+                        ? _buildActionButton(
+                            Icons.group,
+                            context.l10n.memberList,
+                            context,
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    context.l10n.featureInDevelopment,
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        : _buildActionButton(
+                            Icons.person,
+                            context.l10n.viewProfileChatAction,
+                            context,
+                            onTap: () {
+                              if (widget.thread.recipientId.isNotEmpty) {
+                                context.pushNamed(
+                                  AppRoutes.otherProfile.name,
+                                  pathParameters: {
+                                    'userId': widget.thread.recipientId,
+                                  },
+                                );
+                              }
+                            },
+                          ),
+                  ),
+                  Expanded(child: _buildActionButton(Icons.notifications, context.l10n.muteNotificationsAction, context)),
                 ],
               ),
             ),
             const SizedBox(height: 30),
             // Tùy chỉnh Section
-            _buildSectionHeader('Tùy chỉnh', context),
+            _buildSectionHeader(context.l10n.customizationSection, context),
             _buildCustomMenuItem(
               leading: Container(
                 width: 28,
@@ -124,27 +150,14 @@ class _ConversationManagementPageState
                   color: theme.colorScheme.primary,
                 ),
               ),
-              title: 'Chủ đề',
+              title: context.l10n.themeAction,
               context: context,
             ),
-            _buildCustomMenuItem(
-              leading: Text(
-                'Aa',
-                style: TextStyle(
-                  color: onSurface,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              title: 'Biệt danh',
-              context: context,
-            ),
-
             const SizedBox(height: 20),
             // Hành động khác Section
-            _buildSectionHeader('Hành động khác', context),
+            _buildSectionHeader(context.l10n.otherActionsSection, context),
             _buildMenuItem(
-                Icons.image, 'Xem file phương tiện, file và liên kết',
+                Icons.image, context.l10n.viewMediaFilesLinks,
                 iconColor: onSurface, context: context),
             const SizedBox(height: 30),
           ],
@@ -155,7 +168,7 @@ class _ConversationManagementPageState
 
   Widget _buildActionButton(IconData icon, String label, BuildContext context, {VoidCallback? onTap}) {
     final onSurface = Theme.of(context).colorScheme.onSurface;
-    final surfaceContainer = onSurface.withOpacity(0.1);
+    final surfaceContainer = onSurface.withValues(alpha: 0.1);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -193,7 +206,7 @@ class _ConversationManagementPageState
         child: Text(
           title,
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),

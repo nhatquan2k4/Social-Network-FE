@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/src/core/l10n/l10n.dart';
 
 class MessageComposer extends StatelessWidget {
   const MessageComposer({
     super.key,
     required this.controller,
     required this.onSend,
+    required this.onPickImage,
+    required this.onTakePhoto,
     required this.isSending,
     required this.accentColor,
     required this.fillColor,
@@ -12,6 +15,8 @@ class MessageComposer extends StatelessWidget {
 
   final TextEditingController controller;
   final VoidCallback onSend;
+  final VoidCallback onPickImage;
+  final VoidCallback onTakePhoto;
   final bool isSending;
   final Color accentColor;
   final Color fillColor;
@@ -24,13 +29,15 @@ class MessageComposer extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            onPressed: () {},
+            onPressed: isSending ? null : onPickImage,
             icon: const Icon(Icons.image_outlined),
+            tooltip: context.l10n.mediaLibrary,
             color: const Color(0xFF7A7F87),
           ),
           IconButton(
-            onPressed: () {},
+            onPressed: isSending ? null : onTakePhoto,
             icon: const Icon(Icons.photo_camera_outlined),
+            tooltip: context.l10n.cameraLabel,
             color: const Color(0xFF7A7F87),
           ),
           Expanded(
@@ -46,10 +53,10 @@ class MessageComposer extends StatelessWidget {
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => onSend(),
                 textAlignVertical: TextAlignVertical.center,
-                decoration: const InputDecoration(
-                  hintText: 'Nhập tin nhắn...',
+                decoration: InputDecoration(
+                  hintText: context.l10n.typeMessageHint,
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                   border: InputBorder.none,
                 ),
               ),
