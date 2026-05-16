@@ -18,7 +18,8 @@ class SendDirectMediaUseCase
   ) {
     return _repository.sendDirectMedia(
       conversationId: params.conversationId,
-      media: params.media,
+      recipientId: params.recipientId,
+      files: params.files,
       content: params.content,
     );
   }
