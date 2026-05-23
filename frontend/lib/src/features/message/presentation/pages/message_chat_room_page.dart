@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../chat/domain/entities/chat_entity.dart';
 import 'package:frontend/src/core/l10n/l10n.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../routes/app_route_path.dart';
 import '../../domain/entities/message_media_upload_file.dart';
 import '../bloc/message_bloc.dart';
@@ -28,10 +29,6 @@ class MessageChatRoomPage extends StatefulWidget {
 
 class _MessageChatRoomPageState extends State<MessageChatRoomPage>
     with MessageChatRoomActions {
-  static const Color _accentGreen = Color(0xFF3CC18E);
-  static const Color _pageBackground = Color(0xFFF7F8FA);
-  static const Color _peerBubble = Color(0xFFF2F4F7);
-  static const Color _composerFill = Color(0xFFF3F4F6);
   static const int _historyPageLimit = 30;
 
   final TextEditingController _composerController = TextEditingController();
@@ -39,6 +36,7 @@ class _MessageChatRoomPageState extends State<MessageChatRoomPage>
   final ImagePicker _imagePicker = ImagePicker();
   double _previousMaxScrollExtentBeforeOlderLoad = 0.0;
   MessageChatRoomState? _previousChatState;
+  bool _showScrollToLatestButton = false;
 
   @override
   ScrollController get historyScrollController => _historyScrollController;
@@ -70,6 +68,14 @@ class _MessageChatRoomPageState extends State<MessageChatRoomPage>
   }
 
   @override
+  bool get showScrollToLatestButton => _showScrollToLatestButton;
+
+  @override
+  set showScrollToLatestButton(bool value) {
+    _showScrollToLatestButton = value;
+  }
+
+  @override
   void initState() {
     super.initState();
     _historyScrollController.addListener(onHistoryScroll);
@@ -97,6 +103,7 @@ class _MessageChatRoomPageState extends State<MessageChatRoomPage>
         ? currentState
         : _previousChatState;
     final threadAvatarUrl = resolvePeerAvatarUrl(chatState);
+    final colors = AppColors.of(context);
 
     return PopScope<ChatEntity>(
       canPop: false,
@@ -107,11 +114,13 @@ class _MessageChatRoomPageState extends State<MessageChatRoomPage>
         closeWithResult();
       },
       child: Scaffold(
-        backgroundColor: _pageBackground,
+        backgroundColor: colors.scaffold,
         appBar: MessageChatRoomAppBar(
           title: threadName,
           avatarUrl: threadAvatarUrl,
-          accentColor: _accentGreen,
+          accentColor: colors.primary,
+          foregroundColor: colors.appBarForeground,
+          avatarBackgroundColor: colors.sheetSurface,
           onBack: closeWithResult,
           onManage: () {
             context.pushNamed(
@@ -133,6 +142,19 @@ class _MessageChatRoomPageState extends State<MessageChatRoomPage>
                 previous?.scrollToLatestVersion ?? -1;
             final previousRestoreScrollVersion =
                 previous?.restoreScrollVersion ?? -1;
+            final previousMessages = previous?.messages ?? const [];
+            final hasNewMessage =
+                state.messages.length > previousMessages.length;
+            final latestMessage = state.messages.isNotEmpty
+                ? state.messages.last
+                : null;
+            final previousLatestId = previousMessages.isNotEmpty
+                ? previousMessages.last.id
+                : '';
+            final latestMessageIsNew =
+                latestMessage != null && latestMessage.id != previousLatestId;
+            final shouldRespondToNewMessage =
+                hasNewMessage && latestMessageIsNew;
 
             if (state.errorMessage != null &&
                 state.errorVersion != previousErrorVersion) {
@@ -159,6 +181,18 @@ class _MessageChatRoomPageState extends State<MessageChatRoomPage>
               _composerController.clear();
             }
 
+            if (shouldRespondToNewMessage) {
+              final shouldAutoScroll =
+                  isNearLatestMessage || (latestMessage?.fromMe ?? false);
+              if (shouldAutoScroll) {
+                animateToLatestMessage();
+              } else if (!_showScrollToLatestButton) {
+                setState(() {
+                  _showScrollToLatestButton = true;
+                });
+              }
+            }
+
             _previousChatState = state;
           },
           builder: (blocContext, state) {
@@ -182,38 +216,54 @@ class _MessageChatRoomPageState extends State<MessageChatRoomPage>
                       ),
                     ),
                   Expanded(
-                    child: MessageHistoryList(
-                      controller: _historyScrollController,
-                      messages: chatState.messages,
-                      accentColor: _accentGreen,
-                      peerBubbleColor: _peerBubble,
-                      isGroupChat: widget.thread.isGroup,
-                      currentUserId: chatState.currentUserId,
-                      onReaction: (messageId, emoji, isRemove) {
-                        if (isRemove) {
-                          blocContext.read<MessageBloc>().add(
-                            MessageRemoveReactionRequested(
-                              messageId: messageId,
-                              emoji: emoji,
+                    child: Stack(
+                      children: [
+                        MessageHistoryList(
+                          controller: _historyScrollController,
+                          messages: chatState.messages,
+                          accentColor: colors.accent,
+                          peerBubbleColor: colors.inputFill,
+                          isGroupChat: widget.thread.isGroup,
+                          currentUserId: chatState.currentUserId,
+                          onReaction: (messageId, emoji, isRemove) {
+                            if (isRemove) {
+                              blocContext.read<MessageBloc>().add(
+                                MessageRemoveReactionRequested(
+                                  messageId: messageId,
+                                  emoji: emoji,
+                                ),
+                              );
+                            } else {
+                              blocContext.read<MessageBloc>().add(
+                                MessageAddReactionRequested(
+                                  messageId: messageId,
+                                  emoji: emoji,
+                                ),
+                              );
+                            }
+                          },
+                          onDelete: (messageId) {
+                            blocContext.read<MessageBloc>().add(
+                              MessageDeleteRequested(
+                                conversationId: widget.thread.id,
+                                messageId: messageId,
+                              ),
+                            );
+                          },
+                        ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 12,
+                          child: Center(
+                            child: _ScrollToLatestButton(
+                              isVisible: _showScrollToLatestButton,
+                              accentColor: colors.accent,
+                              onPressed: animateToLatestMessage,
                             ),
-                          );
-                        } else {
-                          blocContext.read<MessageBloc>().add(
-                            MessageAddReactionRequested(
-                              messageId: messageId,
-                              emoji: emoji,
-                            ),
-                          );
-                        }
-                      },
-                      onDelete: (messageId) {
-                        blocContext.read<MessageBloc>().add(
-                          MessageDeleteRequested(
-                            conversationId: widget.thread.id,
-                            messageId: messageId,
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
                   ),
                   MessageComposer(
@@ -222,13 +272,64 @@ class _MessageChatRoomPageState extends State<MessageChatRoomPage>
                     onPickImage: () => onPickMediaPressed(ImageSource.gallery),
                     onTakePhoto: () => onPickMediaPressed(ImageSource.camera),
                     isSending: isSending,
-                    accentColor: _accentGreen,
-                    fillColor: _composerFill,
+                    accentColor: colors.accent,
+                    fillColor: colors.inputFill,
+                    backgroundColor: colors.scaffold,
+                    iconColor: colors.textSecondary,
+                    textColor: colors.textPrimary,
+                    hintColor: colors.textSecondary,
                   ),
                 ],
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _ScrollToLatestButton extends StatelessWidget {
+  const _ScrollToLatestButton({
+    required this.isVisible,
+    required this.accentColor,
+    required this.onPressed,
+  });
+
+  final bool isVisible;
+  final Color accentColor;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      scale: isVisible ? 1 : 0.86,
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOutCubic,
+      child: AnimatedOpacity(
+        opacity: isVisible ? 1 : 0,
+        duration: const Duration(milliseconds: 160),
+        child: IgnorePointer(
+          ignoring: !isVisible,
+          child: Material(
+            color: accentColor,
+            elevation: 6,
+            shadowColor: Colors.black.withValues(alpha: 0.18),
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onPressed,
+              child: const SizedBox(
+                width: 44,
+                height: 44,
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
