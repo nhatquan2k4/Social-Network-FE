@@ -4,6 +4,7 @@ import 'package:frontend/src/core/utils/url_normalizer.dart';
 import 'package:frontend/src/core/theme/app_colors.dart';
 import 'package:frontend/src/widgets/follow_status_chip.dart';
 import 'package:intl/intl.dart';
+import 'package:frontend/src/core/testing/test_keys.dart';
 
 import '../../../domain/entities/post_entity.dart';
 
@@ -182,7 +183,8 @@ class PostCard extends StatelessWidget {
                 ),
               ),
             ),
-          _PostMedia(imageUrls: imageUrls),
+          if (imageUrls.isNotEmpty)
+            _PostMedia(imageUrls: imageUrls),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
             child: Column(
@@ -205,16 +207,6 @@ class PostCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    if (showShareStat) ...[
-                      const Spacer(),
-                      Text(
-                        context.l10n.sharesCount('1'), // Placeholder for now
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -224,6 +216,7 @@ class PostCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _BottomAction(
+                      key: TestKeys.postLikeButton,
                       icon: isLikedByMe
                           ? Icons.favorite
                           : Icons.favorite_border,
@@ -234,16 +227,11 @@ class PostCard extends StatelessWidget {
                       onTap: onLike,
                     ),
                     _BottomAction(
+                      key: TestKeys.postCommentButton,
                       icon: Icons.chat_bubble_outline,
                       label: context.l10n.commentAction,
                       onTap: onComment,
                     ),
-                    if (showShareAction)
-                      _BottomAction(
-                        icon: Icons.send,
-                        label: context.l10n.shareAction,
-                        onTap: onShare,
-                      ),
                   ],
                 ),
               ],
@@ -503,6 +491,7 @@ class _UserAvatar extends StatelessWidget {
 
 class _BottomAction extends StatelessWidget {
   const _BottomAction({
+    super.key,
     required this.icon,
     this.color,
     required this.label,
